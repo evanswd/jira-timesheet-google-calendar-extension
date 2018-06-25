@@ -1,6 +1,13 @@
 // This file is responsible for printing the google calendar events on the page
 // and sending the data to the eventPage when the user submits the data
 
+/*if (!String.prototype.startsWith) {
+    String.prototype.startsWith = function(searchString, position) {
+        position = position || 0;
+        return this.indexOf(searchString, position) === position;
+    };
+}*/
+
 $(document).ready(function() {
 	$('#startDate').datepicker();
 	$('#endDate').datepicker();
@@ -41,10 +48,12 @@ chrome.runtime.onMessage.addListener(
   function(request, sender, sendResponse) {
     if (request.action == "show_events") {
     	var events = JSON.parse(request.events);
-    	displayCalendar(events.items, request.defaultTicket);
+    	displayCalendar(events.items, request.defaultTicket, request.colorTicketDefaults);
     }
     else if (request.action == "update_row") {
       updateRow(request.rowId, request.status);
+      if(request.responseText != null)
+          console.log(request.responseText);
     }
 });
 
@@ -72,7 +81,27 @@ function getEvents() {
   chrome.runtime.sendMessage({action: 'get_events', timeFrame: timeFrame});
 }
 
-function displayCalendar(events, defaultTicket) {
+function getTicketForEvent(event, defaultTicket, colorTicketDefaults) {
+    //If the ticket is in the title, that is the highest priority
+    if (event.summary && event.summary.match(/\[([A-Za-z]+-[0-9]+)\]/)) {
+        var ticketInTitle = event.summary.match(/\[([A-Za-z]+-[0-9]+)\]/)[1];
+        return ticketInTitle;
+    }
+
+    //Followed by the description
+    if (event.description && event.description.match(/\[([A-Za-z]+-[0-9]+)\]/)) {
+        var ticketInDescription = event.description.match(/\[([A-Za-z]+-[0-9]+)\]/)[1];
+        return ticketInDescription;
+    }
+
+    if (event.colorId && colorTicketDefaults[event.colorId])
+        return colorTicketDefaults[event.colorId];
+
+    //If we got here, just use the default...
+    return defaultTicket;
+}
+
+function displayCalendar(events, defaultTicket, colorTicketDefaults) {
   if (events.length > 0) {
     $('#warning-row').addClass("hidden");
     $('#log-time-button').removeClass("disabled");
@@ -87,12 +116,16 @@ function displayCalendar(events, defaultTicket) {
         var endTime = event.end.date;
       }
       else {
-        var startTime = event.start.dateTime;
-        var endTime = event.end.dateTime;
+        var ticket = getTicketForEvent(event, defaultTicket, colorTicketDefaults);
 
-        var timeElapsed = getTimeElapsed(startTime, endTime);
-        event.timeElapsed = timeElapsed;
-        addRow(event, i, defaultTicket);
+        if(ticket != "__DO_NOT_SHOW__") {
+            var startTime = event.start.dateTime;
+            var endTime = event.end.dateTime;
+
+            var timeElapsed = getTimeElapsed(startTime, endTime);
+            event.timeElapsed = timeElapsed;
+            addRow(event, i, ticket);
+        }
       }
     }
   }
@@ -119,7 +152,7 @@ function updateRow(rowId, status) {
   }
 }
 
-function addRow(event, counter, defaultTicket) {
+function addRow(event, counter, ticket) {
   var tableBody = document.getElementById('timesheet-table').getElementsByTagName('tbody')[0];
   var newRow = tableBody.insertRow(tableBody.rows.length);
   newRow.id = 'row[' + counter + ']';
@@ -127,9 +160,9 @@ function addRow(event, counter, defaultTicket) {
   var meetingCell = newRow.insertCell(0);
   //var meetingText = document.createTextNode(event.summary);
   //var meetingTextHiddenInput = '<input id="meetingText[' + counter + ']" type="hidden" value="' + event.summary + '">';
-	var meetingTextMarkup = '<input id="meetingText[' + counter + ']" class="form-control" type="text" value="' + event.summary + '">';
+  var meetingTextMarkup = '<input id="meetingText[' + counter + ']" class="form-control" type="text" value="' + event.summary + '">';
   //meetingCell.innerHTML = meetingTextHiddenInput;
-	meetingCell.innerHTML = meetingTextMarkup;
+  meetingCell.innerHTML = meetingTextMarkup;
   //meetingCell.appendChild(meetingText);
 
   var startCell = newRow.insertCell(1);
@@ -148,41 +181,14 @@ function addRow(event, counter, defaultTicket) {
   timeCell.innerHTML = timeMarkUp;
 
   var ticketCell = newRow.insertCell(4);
-  checkEventForTicket(event);
+  var ticketMarkUp = '<input id="ticket[' + counter + ']" class="form-control" type="text" value="'+ ticket +'"">';
+  ticketCell.innerHTML = ticketMarkUp;
 
   var checkBoxCell = newRow.insertCell(5);
-
   checkIfAttended(event);
 
-  // find out if the description or summary of the event contains a ticket number
-  // if it does, use that instead of the default ticket. event title trumps event description
-  function checkEventForTicket(event) {
-    var ticket       = '';
-    var ticketMarkUp = '';
-
-    if (event.description) {
-      // check the description and the meeting title for a ticket
-      if (event.description.match(/([A-Za-z]+-[0-9]+)/)) {
-        var ticketInDescription = event.description.match(/([A-Za-z]+-[0-9]+)/)[0];
-        ticket = ticketInDescription;
-      }
-      if (event.summary.match(/([A-Za-z]+-[0-9]+)/)) {
-        var ticketInTitle = event.summary.match(/([A-Za-z]+-[0-9]+)/)[0];
-        ticket = ticketInTitle;
-      }
-      // if the event had a description but no ticket was found, set the ticket to the default
-      else if (!ticketInDescription && !ticketInTitle) {
-        ticket = defaultTicket;
-      }
-    }
-    // if the event has no description (or no title), set the ticket to the default
-    else {
-      ticket = defaultTicket;
-    }
-
-    ticketMarkUp = '<input id="ticket[' + counter + ']" class="form-control" type="text" value="'+ ticket +'"">';
-    ticketCell.innerHTML = ticketMarkUp;
-  }
+  var billbableCheckBoxCell = newRow.insertCell(6);
+  checkIfBillable(event, ticket)
 
   // find out if the user attended the meeting and if they did, check the box next to the meeting
   function checkIfAttended(event) {
@@ -208,6 +214,22 @@ function addRow(event, counter, defaultTicket) {
       var checkBoxMarkUp = '<input id="checkbox[' + counter + ']" type="checkbox"> <label for="checkbox[' + counter + ']"></label>';
     }
     checkBoxCell.innerHTML = checkBoxMarkUp;
+  }
+
+  function checkIfBillable(event, ticket) {
+      var isBillable = true;
+
+      if(ticket.startsWith("INT-") === true || ticket.startsWith("ADMIN-") === true
+          || ticket.startsWith("SALES-") === true || ticket.startsWith("OPS-") === true)
+          isBillable = false;
+
+      if (isBillable === true) {
+          var billableCheckBoxMarkUp = '<input id="billableCheckbox[' + counter + ']" type="checkbox" checked> <label for="billableCheckbox[' + counter + ']"></label>';
+      }
+      else {
+          var billableCheckBoxMarkUp = '<input id="billableCheckbox[' + counter + ']" type="checkbox"> <label for="billableCheckbox[' + counter + ']"></label>';
+      }
+      billbableCheckBoxCell.innerHTML = billableCheckBoxMarkUp;
   }
 }
 
@@ -321,6 +343,7 @@ function logTime() {
     var startTimes = $("[id^=startTime");
     var meetingTitles = $("[id^=meetingText");
     var checkboxes = $("[id^=checkbox]");
+    var billableCheckboxes = $("[id^=billableCheckbox]");
     var timesheets = [];
 
     for (i = 0; i < worklogs.length; i++) {
@@ -331,6 +354,8 @@ function logTime() {
       var meetingTitle = meetingTitles[i];
       var checkbox = checkboxes[i];
       var isChecked = $(checkbox).is(":checked");
+      var billableCheckbox = billableCheckboxes[i];
+      var isBillable = $(billableCheckbox).is(":checked");
 
       if (isChecked == true) {
         worklog = convertToSeconds(worklog.value);
@@ -339,7 +364,8 @@ function logTime() {
           "worklog": worklog,
           "ticket": ticket.value,
           "startTime": startTime.value,
-          "meetingTitle": meetingTitle.value
+          "meetingTitle": meetingTitle.value,
+          "isBillable": isBillable
         }
         timesheets.push(timesheet);
       }

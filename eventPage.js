@@ -79,22 +79,24 @@ function getCalendarEvents(token, startDate, endDate, callback) {
 
 function sendEventsAndDefaultTicket(events) {
   chrome.storage.sync.get({
-    jira_ticket: 'unknown'
+    jira_ticket: 'unknown',
+    jira_colorDefaults: 'unknown'
   },
   function(items) {
-    if (items.jira_ticket == 'unknown') {
+    if (items.jira_ticket == 'unknown' || items.jira_colorDefaults == 'unknown') {
       return false;
       chrome.tabs.create({url: 'chrome://extensions/?options=' + chrome.runtime.id}, function (tab) {});
     }
     else {
       var defaultTicket = items.jira_ticket;
-      sendEventsAndDefaultTicket(defaultTicket);
+      var colorTicketDefaults = items.jira_colorDefaults;
+      sendEventsAndDefaultTicket(defaultTicket, colorTicketDefaults);
     }
   });
 
-  function sendEventsAndDefaultTicket(defaultTicket) {
+  function sendEventsAndDefaultTicket(defaultTicket, colorTicketDefaults) {
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      chrome.tabs.sendMessage(tabs[0].id, {action: "show_events", events: events, defaultTicket: defaultTicket});
+      chrome.tabs.sendMessage(tabs[0].id, {action: "show_events", events: events, defaultTicket: defaultTicket, colorTicketDefaults: colorTicketDefaults});
     });
   }
 }
@@ -126,7 +128,8 @@ function logTime(timesheets) {
         var credentials = btoa(items.jira_user + ":" + items.jira_password);
         var jiraInfo = JSON.stringify({
           "credentials": credentials,
-          "url": items.jira_url
+          "url": items.jira_url,
+          "author": items.jira_user
         });
         callback(jiraInfo, timesheets);
       }
@@ -136,28 +139,34 @@ function logTime(timesheets) {
   function writeTimesheet(timesheet, jiraInfo) {
     jiraInfo = JSON.parse(jiraInfo);
     var credentials = jiraInfo.credentials;
-    var url = jiraInfo.url + '/rest/api/2/issue/' + timesheet.ticket + '/worklog';
+    //var url = jiraInfo.url + '/rest/api/2/issue/' + timesheet.ticket + '/worklog';
+    var url = jiraInfo.url + '/rest/tempo-timesheets/3/worklogs/';
 
     var data = JSON.stringify({
+      "issue": { "key": timesheet.ticket },
+      "author": { "name": jiraInfo.author },
       "timeSpentSeconds": timesheet.worklog,
+      "billedSeconds": (timesheet.isBillable === true) ? timesheet.worklog : 0,
       "comment": timesheet.meetingTitle,
-      "started": timesheet.startTime
+      "dateStarted": timesheet.startTime,
+      //Sorry this is confusing... if Billable = true, then Non-Billable = false... (inverse)
+      "workAttributeValues": [ { "workAttribute": { "id": 3 }, "value": (timesheet.isBillable === true ? "false" : "true") } ]
     });
 
     var xhttp = new XMLHttpRequest();
 
     xhttp.onload = function() {
-      if (xhttp.status === 201) {
-        updateRow(timesheet.id, "success");
+      if (xhttp.status === 200) {
+        updateRow(timesheet.id, "success", null);
       }
       else {
-        updateRow(timesheet.id, "fail");
+        updateRow(timesheet.id, "fail", xhttp.responseText);
       }
     };
     xhttp.onerror = function() {
       // Do whatever you want on error. Don't forget to invoke the
       // callback to clean up the communication port.
-      updateRow(timesheet.id, "fail");
+      updateRow(timesheet.id, "fail", xhttp.responseText);
     };
 
     xhttp.open('POST', url, true);
@@ -170,10 +179,10 @@ function logTime(timesheets) {
     return true; // prevents the callback from being called too early on return
   }
 
-  function updateRow(rowId, status) {
+  function updateRow(rowId, status, responseText) {
     // send a message to the content script to update the row based on the status of POSTing the worklog
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-      chrome.tabs.sendMessage(tabs[0].id, {action: "update_row", status: status, rowId: rowId});
+      chrome.tabs.sendMessage(tabs[0].id, {action: "update_row", status: status, rowId: rowId, responseText: responseText});
     });
   }
 }

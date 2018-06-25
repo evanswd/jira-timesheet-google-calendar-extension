@@ -15,7 +15,7 @@
    },
    "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAky+bRos0J5FlJFQORuJsk/ht7aJOgXs9JmXhU4L55hyCGWdIC+IMDGBWCaK/NOqNiqnOpZUor7IeYkSTrsvh+R+yKFovK62Y9AOawLjXs6yR1N99+bsHtH3YPjfCtBi09uXOhzPJmaHQ7KmMugQlq4qzTzoAfmFIHAZErJ9MY0Ccvu6p8JYgA7D/Chr2taLjxCX5WVCLZzOxDiwAc7bzA328r7BD81caHTEYIDfOxZTJcfHMxUQHoOfoSXHGwujyAb0ObAjoI2icSN1Cd5O6FX3FqvI/MsnBjarbCTaLeOkF+bSN5xGiVcE9D4SN/+iDGYUG0L44D0BuMgL/wY3X4QIDAQAB",
    "manifest_version": 2,
-   "name": "Google Calendar Timesheets",
+   "name": "LFox Google Calendar Timesheets",
    "oauth2": {
       "client_id": "577904776419-s51hn7v7abvnvmt9lamd3uri2cf6kq3n.apps.googleusercontent.com",
       "scopes": [ "https://www.googleapis.com/auth/calendar.readonly" ]

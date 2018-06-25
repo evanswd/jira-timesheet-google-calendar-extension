@@ -3,8 +3,22 @@ function save_options() {
   clearMsg();
   var username = document.getElementById('username').value;
   var password = document.getElementById('password').value;
-  var ticket  = document.getElementById('ticket').value;
   var url      = document.getElementById('url').value;
+  var ticket   = document.getElementById('ticket').value;
+
+  //COLORS!!
+  var colorTicketDefaults = [];
+    colorTicketDefaults[1] = document.getElementById('defaultTicketColor_1').value;
+    colorTicketDefaults[2] = document.getElementById('defaultTicketColor_2').value;
+    colorTicketDefaults[3] = document.getElementById('defaultTicketColor_3').value;
+    colorTicketDefaults[4] = document.getElementById('defaultTicketColor_4').value;
+    colorTicketDefaults[5] = document.getElementById('defaultTicketColor_5').value;
+    colorTicketDefaults[6] = document.getElementById('defaultTicketColor_6').value;
+    colorTicketDefaults[7] = document.getElementById('defaultTicketColor_7').value;
+    colorTicketDefaults[8] = document.getElementById('defaultTicketColor_8').value;
+    colorTicketDefaults[9] = document.getElementById('defaultTicketColor_9').value;
+    colorTicketDefaults[10] = document.getElementById('defaultTicketColor_10').value;
+    colorTicketDefaults[11] = document.getElementById('defaultTicketColor_11').value;
 
   // a trailing slash in the url will mess up the extension -- remove it if it exists
   url = stripTrailingSlash(url);
@@ -16,7 +30,8 @@ function save_options() {
     jira_user: username,
     jira_password: password,
     jira_ticket: ticket,
-    jira_url: url
+    jira_url: url,
+    jira_colorDefaults: colorTicketDefaults
   }, function() {
       // after we save the info, send a GET to JIRA and let's check if
       // a) the credentials work
@@ -93,12 +108,14 @@ function restore_options() {
     jira_user: 'unknown',
     jira_password: 'unknown',
     jira_ticket: 'unknown',
-    jira_url: 'unknown'
+    jira_url: 'unknown',
+    jira_colorDefaults: 'unknown'
   }, function(items) {
     var username = items.jira_user;
     var password = items.jira_password;
     var ticket  = items.jira_ticket;
     var url      = items.jira_url;
+    var colorTicketDefaults = items.jira_colorDefaults;
 
     if (username != 'unknown') {
       document.getElementById('username').value = username;
@@ -111,6 +128,19 @@ function restore_options() {
     }
     if (url != 'unknown') {
       document.getElementById('url').value = url;
+    }
+    if(colorTicketDefaults != 'unknown') {
+        document.getElementById('defaultTicketColor_1').value = colorTicketDefaults[1];
+        document.getElementById('defaultTicketColor_2').value = colorTicketDefaults[2];
+        document.getElementById('defaultTicketColor_3').value = colorTicketDefaults[3];
+        document.getElementById('defaultTicketColor_4').value = colorTicketDefaults[4];
+        document.getElementById('defaultTicketColor_5').value = colorTicketDefaults[5];
+        document.getElementById('defaultTicketColor_6').value = colorTicketDefaults[6];
+        document.getElementById('defaultTicketColor_7').value = colorTicketDefaults[7];
+        document.getElementById('defaultTicketColor_8').value = colorTicketDefaults[8];
+        document.getElementById('defaultTicketColor_9').value = colorTicketDefaults[9];
+        document.getElementById('defaultTicketColor_10').value = colorTicketDefaults[10];
+        document.getElementById('defaultTicketColor_11').value = colorTicketDefaults[11];
     }
   });
 }
